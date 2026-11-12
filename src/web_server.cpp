@@ -6,6 +6,7 @@
 #include "web_server.h"
 #include "web_page.h"
 #include "pid.h"
+#include "motors.h"
 
 // =====================================================================
 // ESP32-MERV
@@ -59,46 +60,32 @@ void handleRoot() {
 // JOYSTICK HANDLER
 // =====================================================================
 
+
 void handleMove() {
 
     if (!autoTestMode) {
 
-        // Read joystick throttle
+        // Read joystick forward/backward movement
         int throttle = constrain(
             server.arg("throttle").toInt(),
             -1023,
             1023
         );
 
-        // Read joystick steering
-        int steer = constrain(
-            server.arg("steer").toInt(),
-            -1023,
-            1023
-        );
+        // Limit PWM to a small testing range
+        const int TEST_PWM_LIMIT = 80;
 
-        // Calculate differential drive commands
-        int left = constrain(
-            throttle + steer,
-            -1023,
-            1023
-        );
+        // Convert joystick position into PWM
+        int pwmCommand = throttle * TEST_PWM_LIMIT / 1023;
 
-        int right = constrain(
-            throttle - steer,
-            -1023,
-            1023
-        );
+        // Control Motor 1 directly (NO PID)
+        setMotor1(pwmCommand);
 
-        // Convert joystick commands into target RPM
-        float leftRPM =
-            left / 1023.0f * maxWheelRpm;
+        // Keep Motor 2 stopped
+        setMotor2(0);
 
-        float rightRPM =
-            right / 1023.0f * maxWheelRpm;
-
-        // Send target speeds to PID module
-        setTargetRPM(leftRPM, rightRPM);
+        // Display PWM command in Serial Monitor
+        Serial.printf("Motor 1 PWM: %d\n", pwmCommand);
 
         // Update communication timestamp
         lastCommandTime = millis();

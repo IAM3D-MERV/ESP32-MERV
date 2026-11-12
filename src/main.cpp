@@ -119,40 +119,14 @@ void loop() {
     handleWebClients();
 
     // -----------------------------------------------------
-    // AUTOMATIC TEST MODE
+    // Joystick Communication Timeout
     // -----------------------------------------------------
 
-    if (AUTO_TEST) {
+    if (joystickTimedOut(TIMEOUT_MS)) {
 
-        unsigned long t = millis();
+        // Stop motors if joystick communication times out
+        setMotor1(0);
+        setMotor2(0);
 
-        bool on =
-            t >= START_DELAY_MS &&
-            t < START_DELAY_MS + RUN_DURATION_MS;
-
-        float target = on ? TEST_RPM : 0;
-
-        setTargetRPM(target, target);
     }
-
-    // -----------------------------------------------------
-    // JOYSTICK COMMUNICATION TIMEOUT
-    // -----------------------------------------------------
-
-    else if (joystickTimedOut(TIMEOUT_MS)) {
-
-        setTargetRPM(0, 0);
-    }
-
-    // -----------------------------------------------------
-    // UPDATE PID CONTROL SYSTEM
-    // -----------------------------------------------------
-
-    controlUpdate();
-
-    // -----------------------------------------------------
-    // SERIAL DEBUG OUTPUT
-    // -----------------------------------------------------
-
-    printStatus();
 }
