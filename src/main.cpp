@@ -1,103 +1,47 @@
 
 #include <Arduino.h>
-#include <WiFi.h>
-#include <WebServer.h>
 
-#include "web_page.h"
 #include "encoders.h"
 #include "motors.h"
 #include "pid.h"
+#include "web_server.h"
 
 // =====================================================================
-// ESP32-MERV MAIN PROGRAM
+// ESP32-MERV
+// MAIN PROGRAM
+//
+// PURPOSE:
+// Coordinate initialization and operation of rover subsystems.
+//
+// MODULES:
+// - motors.cpp      : Motor direction and PWM
+// - encoders.cpp    : Quadrature encoder feedback
+// - pid.cpp         : PID and wheel synchronization
+// - web_server.cpp  : Wi-Fi and joystick communication
+// - web_page.h      : Web interface
 // =====================================================================
 
-WebServer server(80);
+// =====================================================================
+// OPERATING MODE
+// =====================================================================
 
-// Operating mode
 const bool AUTO_TEST = false;
+
+// Automatic test settings
 const float TEST_RPM = 50.0f;
 
 const unsigned long START_DELAY_MS = 3000;
 const unsigned long RUN_DURATION_MS = 15000;
 
-// Joystick settings
+// =====================================================================
+// JOYSTICK CONFIGURATION
+// =====================================================================
+
+// Maximum requested wheel speed
 const float MAX_WHEEL_RPM = 10.0f;
 
-// Communication timeout
-unsigned long lastCommandTime = 0;
-const unsigned long timeoutMs = 500;
-
-// =====================================================================
-// WEB PAGE HANDLER
-// =====================================================================
-
-void handleRoot() {
-    server.send_P(200, "text/html", WEB_PAGE);
-}
-
-// =====================================================================
-// JOYSTICK HANDLER
-// =====================================================================
-
-void handleMove() {
-
-    if (!AUTO_TEST) {
-
-        int throttle = constrain(
-            server.arg("throttle").toInt(),
-            -1023,
-            1023
-        );
-
-        int steer = constrain(
-            server.arg("steer").toInt(),
-            -1023,
-            1023
-        );
-
-        int left = constrain(
-            throttle + steer,
-            -1023,
-            1023
-        );
-
-        int right = constrain(
-            throttle - steer,
-            -1023,
-            1023
-        );
-
-        float leftRPM =
-            left / 1023.0f * MAX_WHEEL_RPM;
-
-        float rightRPM =
-            right / 1023.0f * MAX_WHEEL_RPM;
-
-        setTargetRPM(leftRPM, rightRPM);
-
-        lastCommandTime = millis();
-    }
-
-    server.send(200, "text/plain", "OK");
-}
-
-// =====================================================================
-// ENCODER WEB HANDLER
-// =====================================================================
-
-void handleEncoder() {
-
-    float rpm1, rpm2;
-
-    getMeasuredRPM(rpm1, rpm2);
-
-    server.send(
-        200,
-        "text/plain",
-        String(rpm1, 0) + " | " + String(rpm2, 0)
-    );
-}
+// Communication timeout in milliseconds
+const unsigned long TIMEOUT_MS = 500;
 
 // =====================================================================
 // SETUP
@@ -107,7 +51,10 @@ void setup() {
 
     Serial.begin(9600);
 
-    // Initialize motor module
+    // -----------------------------------------------------
+    // INITIALIZE MOTOR SYSTEM
+    // -----------------------------------------------------
+
     if (!initMotors()) {
 
         Serial.println(
@@ -119,31 +66,44 @@ void setup() {
         }
     }
 
-    // Initialize encoders
+    Serial.println("Motor module initialized");
+
+    // -----------------------------------------------------
+    // INITIALIZE ENCODER SYSTEM
+    // -----------------------------------------------------
+
     initEncoders();
 
-    // Initialize Wi-Fi
-    WiFi.softAP("Rover-AP", "12345678");
+    Serial.println("Encoder module initialized");
 
-    Serial.println();
-    Serial.print("AP IP address: ");
-    Serial.println(WiFi.softAPIP());
+    // -----------------------------------------------------
+    // INITIALIZE WEB SERVER
+    // -----------------------------------------------------
 
-    // Configure web server
-    server.on("/", handleRoot);
-    server.on("/move", handleMove);
-    server.on("/encoder", handleEncoder);
+    if (!initWebServer(AUTO_TEST, MAX_WHEEL_RPM)) {
 
-    server.begin();
+        Serial.println(
+            "ERROR: Web server initialization failed"
+        );
 
-    Serial.println(
-        AUTO_TEST
-        ? "AUTO TEST mode: motors start in 3 s"
-        : "Joystick mode"
-    );
+        while (true) {
+            delay(1000);
+        }
+    }
 
-    // Initialize PID control system
+    // -----------------------------------------------------
+    // INITIALIZE PID CONTROL SYSTEM
+    // -----------------------------------------------------
+
     initControl();
+
+    Serial.println("PID module initialized");
+
+    // -----------------------------------------------------
+    // SYSTEM READY
+    // -----------------------------------------------------
+
+    Serial.println("ESP32-MERV Initialized");
 }
 
 // =====================================================================
@@ -152,9 +112,16 @@ void setup() {
 
 void loop() {
 
-    server.handleClient();
+    // -----------------------------------------------------
+    // PROCESS WEB REQUESTS
+    // -----------------------------------------------------
 
-    // Automatic motor test
+    handleWebClients();
+
+    // -----------------------------------------------------
+    // AUTOMATIC TEST MODE
+    // -----------------------------------------------------
+
     if (AUTO_TEST) {
 
         unsigned long t = millis();
@@ -168,15 +135,24 @@ void loop() {
         setTargetRPM(target, target);
     }
 
-    // Stop command when joystick communication times out
-    else if (millis() - lastCommandTime > timeoutMs) {
+    // -----------------------------------------------------
+    // JOYSTICK COMMUNICATION TIMEOUT
+    // -----------------------------------------------------
+
+    else if (joystickTimedOut(TIMEOUT_MS)) {
 
         setTargetRPM(0, 0);
     }
 
-    // Update PID controller
+    // -----------------------------------------------------
+    // UPDATE PID CONTROL SYSTEM
+    // -----------------------------------------------------
+
     controlUpdate();
 
-    // Print debug information
+    // -----------------------------------------------------
+    // SERIAL DEBUG OUTPUT
+    // -----------------------------------------------------
+
     printStatus();
 }
