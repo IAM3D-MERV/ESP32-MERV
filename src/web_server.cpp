@@ -61,31 +61,52 @@ void handleRoot() {
 // =====================================================================
 
 
+
 void handleMove() {
 
     if (!autoTestMode) {
 
-        // Read joystick forward/backward movement
+        // Read forward/backward joystick movement
         int throttle = constrain(
             server.arg("throttle").toInt(),
             -1023,
             1023
         );
 
-        // Limit PWM to a small testing range
-        const int TEST_PWM_LIMIT = 80;
+        // Read left/right joystick movement
+        int steer = constrain(
+            server.arg("steer").toInt(),
+            -1023,
+            1023
+        );
 
-        // Convert joystick position into PWM
-        int pwmCommand = throttle * TEST_PWM_LIMIT / 1023;
+        // Calculate command for the LEFT motor
+        int left = constrain(
+            throttle + steer,
+            -1023,
+            1023
+        );
 
-        // Control Motor 1 directly (NO PID)
+        // Limit PWM for testing
+        const int TEST_PWM_LIMIT = 1023;
+
+        // Convert joystick command to PWM
+        int pwmCommand =
+            left * TEST_PWM_LIMIT / 1023;
+
+        // Control Motor 1 directly
         setMotor1(pwmCommand);
 
-        // Keep Motor 2 stopped
+        // Motor 2 remains stopped
         setMotor2(0);
 
-        // Display PWM command in Serial Monitor
-        Serial.printf("Motor 1 PWM: %d\n", pwmCommand);
+        // Debug output
+        Serial.printf(
+            "Throttle: %d | Steer: %d | Motor 1 PWM: %d\n",
+            throttle,
+            steer,
+            pwmCommand
+        );
 
         // Update communication timestamp
         lastCommandTime = millis();
@@ -93,6 +114,7 @@ void handleMove() {
 
     server.send(200, "text/plain", "OK");
 }
+
 
 // =====================================================================
 // ENCODER WEB HANDLER
