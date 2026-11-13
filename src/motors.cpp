@@ -18,50 +18,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // PWM Configuration
 // ESP32 Arduino 3.x LEDC PWM
 // 10-bit resolution: 0 to 1023, 20 kHz frequency
