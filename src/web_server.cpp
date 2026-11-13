@@ -62,53 +62,57 @@ void handleRoot() {
 
 
 
+
 void handleMove() {
 
     if (!autoTestMode) {
 
-        // Read forward/backward joystick movement
+        // Read joystick inputs
         int throttle = constrain(
             server.arg("throttle").toInt(),
-            -1023,
-            1023
+            -1023, 1023
         );
 
-        // Read left/right joystick movement
         int steer = constrain(
             server.arg("steer").toInt(),
-            -1023,
-            1023
+            -1023, 1023
         );
 
-        // Calculate command for the LEFT motor
-        int left = constrain(
+        // Differential drive mixing
+        int leftCommand = constrain(
             throttle + steer,
-            -1023,
-            1023
+            -1023, 1023
         );
 
-        // Limit PWM for testing
+        int rightCommand = constrain(
+            throttle - steer,
+            -1023, 1023
+        );
+
+        // Maximum PWM for testing
+        // 10-bit PWM full scale = 1023
         const int TEST_PWM_LIMIT = 1023;
 
-        // Convert joystick command to PWM
-        int pwmCommand =
-            left * TEST_PWM_LIMIT / 1023;
+        // Scale both motor commands
+        int pwm1 =
+            leftCommand * TEST_PWM_LIMIT / 1023;
 
-        // Control Motor 1 directly
-        setMotor1(pwmCommand);
+        int pwm2 =
+            rightCommand * TEST_PWM_LIMIT / 1023;
 
-        // Motor 2 remains stopped
-        setMotor2(0);
+        // OPEN-LOOP: directly control both motors
+        setMotor1(pwm1);
+        setMotor2(pwm2);
 
-        // Debug output
+        // Debug both motors
         Serial.printf(
-            "Throttle: %d | Steer: %d | Motor 1 PWM: %d\n",
+            "Throttle: %d | Steer: %d | M1 PWM: %d | M2 PWM: %d\n",
             throttle,
             steer,
-            pwmCommand
+            pwm1,
+            pwm2
         );
 
-        // Update communication timestamp
         lastCommandTime = millis();
     }
 

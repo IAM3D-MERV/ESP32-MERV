@@ -110,23 +110,19 @@ void setup() {
 // MAIN LOOP
 // =====================================================================
 
+
 void loop() {
 
-    // -----------------------------------------------------
-    // PROCESS WEB REQUESTS
-    // -----------------------------------------------------
-
+    // Receive commands from web joystick
     handleWebClients();
 
-    // -----------------------------------------------------
-    // Joystick Communication Timeout
-    // -----------------------------------------------------
-
+    // Stop both motors if joystick communication is lost
     if (joystickTimedOut(TIMEOUT_MS)) {
-
-        // Stop motors if joystick communication times out
         setMotor1(0);
         setMotor2(0);
-
     }
+
+    // NO PID
+    // NO wheel synchronization
+    // NO encoder feedback
 }
