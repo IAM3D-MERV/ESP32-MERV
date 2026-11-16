@@ -15,9 +15,12 @@
 #define IN3 18
 #define IN4 19
 
+<<<<<<< HEAD
 
 
 
+=======
+>>>>>>> origin/main
 // PWM Configuration
 // ESP32 Arduino 3.x LEDC PWM
 // 10-bit resolution: 0 to 1023, 20 kHz frequency
@@ -31,6 +34,7 @@ const bool INVERT_MOTOR2 = false;
 
 // Motor 1 Control
 void setMotor1(int pwm) {
+    pwm = constrain(pwm, -1023, 1023);
 
 // Reverse direction if configured
     if (INVERT_MOTOR1)
@@ -41,11 +45,12 @@ void setMotor1(int pwm) {
     digitalWrite(IN2, pwm < 0);
 
 // PWM speed control
-    ledcWrite(ENA, constrain(abs(pwm), 0, 1023));
+    ledcWrite(ENA, abs(pwm));
 }
 
 // Motor 2 Control
 void setMotor2(int pwm) {
+    pwm = constrain(pwm, -1023, 1023);
 
 // Reverse direction if configured
     if (INVERT_MOTOR2)
@@ -56,7 +61,7 @@ void setMotor2(int pwm) {
     digitalWrite(IN4, pwm < 0);
 
 // PWM speed control
-    ledcWrite(ENB, constrain(abs(pwm), 0, 1023));
+    ledcWrite(ENB, abs(pwm));
 }
 
 // =====================================================================
@@ -70,7 +75,7 @@ bool initMotors() {
     pinMode(IN3, OUTPUT);
     pinMode(IN4, OUTPUT);
 
-    // Staty with both motors stopped
+    // Start with both motors stopped
     digitalWrite(IN1, LOW);
     digitalWrite(IN2, LOW);
     digitalWrite(IN3, LOW);
@@ -79,8 +84,10 @@ bool initMotors() {
     // Configure PWM pins
     pinMode(ENA, OUTPUT);
     pinMode(ENB, OUTPUT);
+    digitalWrite(ENA, LOW);
+    digitalWrite(ENB, LOW);
 
-    // Initialize ESPN32 LEDC PWM
+    // Initialize ESP32 LEDC PWM
     bool pwmAReady = ledcAttach(
         ENA,
         PWM_FREQUENCY_HZ,
@@ -92,6 +99,10 @@ bool initMotors() {
         PWM_RESOLUTION_BITS
     );
     if (!pwmAReady || !pwmBReady) {
+        if (pwmAReady) ledcDetach(ENA);
+        if (pwmBReady) ledcDetach(ENB);
+        digitalWrite(ENA, LOW);
+        digitalWrite(ENB, LOW);
         Serial.println(
             "ERROR: Motor PWM initialization failed"
         );
