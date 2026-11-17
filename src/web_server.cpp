@@ -6,6 +6,7 @@
 #include "web_server.h"
 #include "web_page.h"
 #include "pid.h"
+#include "motors.h"
 
 // =====================================================================
 // ESP32-MERV
@@ -59,46 +60,53 @@ void handleRoot() {
 // JOYSTICK HANDLER
 // =====================================================================
 
+
+
 void handleMove() {
 
     if (!autoTestMode) {
 
-        // Read joystick throttle
+        // Read forward/backward joystick movement
         int throttle = constrain(
             server.arg("throttle").toInt(),
             -1023,
             1023
         );
 
-        // Read joystick steering
+        // Read left/right joystick movement
         int steer = constrain(
             server.arg("steer").toInt(),
             -1023,
             1023
         );
 
-        // Calculate differential drive commands
+        // Calculate command for the LEFT motor
         int left = constrain(
             throttle + steer,
             -1023,
             1023
         );
 
-        int right = constrain(
-            throttle - steer,
-            -1023,
-            1023
+        // Limit PWM for testing
+        const int TEST_PWM_LIMIT = 1023;
+
+        // Convert joystick command to PWM
+        int pwmCommand =
+            left * TEST_PWM_LIMIT / 1023;
+
+        // Control Motor 1 directly
+        setMotor1(pwmCommand);
+
+        // Motor 2 remains stopped
+        setMotor2(0);
+
+        // Debug output
+        Serial.printf(
+            "Throttle: %d | Steer: %d | Motor 1 PWM: %d\n",
+            throttle,
+            steer,
+            pwmCommand
         );
-
-        // Convert joystick commands into target RPM
-        float leftRPM =
-            left / 1023.0f * maxWheelRpm;
-
-        float rightRPM =
-            right / 1023.0f * maxWheelRpm;
-
-        // Send target speeds to PID module
-        setTargetRPM(leftRPM, rightRPM);
 
         // Update communication timestamp
         lastCommandTime = millis();
@@ -106,6 +114,7 @@ void handleMove() {
 
     server.send(200, "text/plain", "OK");
 }
+
 
 // =====================================================================
 // ENCODER WEB HANDLER
