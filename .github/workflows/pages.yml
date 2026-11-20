@@ -3,6 +3,7 @@ name: Deploy Rover UI Preview
 on:
   push:
     branches:
+      - main
       - "Yi'en"
   workflow_dispatch:
 
