@@ -473,7 +473,47 @@ Arm: connecting...
 </div>
 
 <script>
-if (!window.location.hostname.startsWith('192.168.4.')) { const previewFetch = window.fetch.bind(window); window.fetch = (url, options) => { if (typeof url === 'string' && url.startsWith('/')) { if (url.startsWith('/settings')) return Promise.resolve(new Response(JSON.stringify({maxRpm:50,angleStep:6,kp:10,ki:10,kd:0.1,syncEnabled:true,syncGain:50}), {status:200,headers:{'Content-Type':'application/json'}})); if (url.startsWith('/encoder')) return Promise.resolve(new Response('0 | 0', {status:200,headers:{'Content-Type':'text/plain'}})); if (url.startsWith('/wifi/status')) return Promise.resolve(new Response(JSON.stringify({apIp:'192.168.4.1',staIp:'0.0.0.0',ssid:',connected:false,status:'Preview mode'}), {status:200,headers:{'Content-Type':'application/json'}})); if (url.startsWith('/wifi/networks')) return Promise.resolve(new Response('[]', {status:200,headers:{'Content-Type':'application/json'}})); return Promise.resolve(new Response('OK', {status:200,headers:{'Content-Type':'text/plain'}})); } return previewFetch(url, options); }; }
+if (!window.location.hostname.startsWith('192.168.4.')) {
+    const previewFetch = window.fetch.bind(window);
+    window.fetch = (url, options) => {
+        if (typeof url === 'string' && url.startsWith('/')) {
+            if (url.startsWith('/settings'))
+                return Promise.resolve(new Response(JSON.stringify({
+                    maxRpm:50, angleStep:6, kp:10, ki:10, kd:0.1,
+                    syncEnabled:true, syncGain:50
+                }), {
+                    status:200,
+                    headers:{'Content-Type':'application/json'}
+                }));
+            if (url.startsWith('/encoder'))
+                return Promise.resolve(new Response('0 | 0', {
+                    status:200,
+                    headers:{'Content-Type':'text/plain'}
+                }));
+            if (url.startsWith('/wifi/status'))
+                return Promise.resolve(new Response(JSON.stringify({
+                    apIp:'192.168.4.1',
+                    staIp:'0.0.0.0',
+                    ssid:'',
+                    connected:false,
+                    status:'Preview mode'
+                }), {
+                    status:200,
+                    headers:{'Content-Type':'application/json'}
+                }));
+            if (url.startsWith('/wifi/networks'))
+                return Promise.resolve(new Response('[]', {
+                    status:200,
+                    headers:{'Content-Type':'application/json'}
+                }));
+            return Promise.resolve(new Response('OK', {
+                status:200,
+                headers:{'Content-Type':'text/plain'}
+            }));
+        }
+        return previewFetch(url, options);
+    };
+}
 
 // ---------------- DRIVE CONTROLS ----------------
 
