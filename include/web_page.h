@@ -28,6 +28,79 @@ body {
 h2 { margin: 0 0 20px; }
 h3 { margin: 0 0 8px; }
 
+.top-bar {
+    width: 100%;
+    max-width: 360px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.top-bar h2 { margin: 0; }
+
+#sectionMenu {
+    width: 160px;
+    padding: 9px 10px;
+    border: 1px solid #555;
+    border-radius: 8px;
+    background: #222;
+    color: #fff;
+    font-size: 14px;
+}
+
+#gearBtn {
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    flex: 0 0 42px;
+    border-radius: 50%;
+    font-size: 21px;
+}
+
+.hidden { display: none !important; }
+
+.popup-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: rgba(0, 0, 0, 0.72);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.popup {
+    width: 100%;
+    max-width: 420px;
+    max-height: 82vh;
+    overflow-y: auto;
+    background: #1b1b1b;
+    border: 1px solid #444;
+    border-radius: 12px;
+    padding: 18px;
+    box-sizing: border-box;
+}
+
+.popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.popup-header h3 { margin: 0; }
+
+#closeSettingsBtn {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    padding: 0;
+    border-radius: 50%;
+}
+
 .joystick-container {
     width: 220px;
     height: 220px;
@@ -72,7 +145,61 @@ h3 { margin: 0 0 8px; }
     padding-top: 20px;
 }
 
+.settings {
+    width: 100%;
+    max-width: 360px;
+    margin-top: 28px;
+    border-top: 1px solid #333;
+    padding-top: 20px;
+}
+
+.toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 12px 0;
+    color: #ccc;
+}
+
+.toggle-row input {
+    width: 22px;
+    height: 22px;
+}
+
+.wifi select,
+.wifi input[type=text],
+.wifi input[type=password] {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 8px 0;
+    padding: 10px;
+    border: 1px solid #555;
+    border-radius: 6px;
+    background: #222;
+    color: #fff;
+    font-size: 15px;
+}
+
+.setting-value-input {
+    width: 72px;
+    padding: 5px;
+    margin-left: 8px;
+    border: 1px solid #555;
+    border-radius: 6px;
+    background: #222;
+    color: #fff;
+    text-align: right;
+}
+
 .row { margin: 12px 0; }
+
+.setting-description {
+    display: block;
+    margin-top: 5px;
+    color: #999;
+    font-size: 12px;
+    line-height: 1.35;
+}
 
 .row label {
     display: flex;
@@ -106,7 +233,19 @@ button {
 
 <body>
 
+<div class="top-bar">
 <h2>Rover Control</h2>
+<button id="gearBtn" title="Open settings">&#9881;</button>
+</div>
+
+<select id="sectionMenu" aria-label="Section">
+<option value="drive">Drive</option>
+<option value="arm">Arm</option>
+<option value="settings">Settings</option>
+<option value="wifi">Wi-Fi</option>
+</select>
+
+<div id="drivePanel">
 
 <div class="joystick-container" id="stick">
     <div class="joystick-handle" id="handle"></div>
@@ -119,8 +258,9 @@ Up/Down = Throttle &nbsp;|&nbsp; Left/Right = Turn
 <div class="encoder" id="encoderReading">
 Wheel RPM: 0 | 0
 </div>
+</div>
 
-<div class="arm">
+<div class="arm hidden" id="armPanel">
 
 <h3>Arm</h3>
 
@@ -144,6 +284,106 @@ id="speed" min="10" max="1000" value="60">
 <div class="encoder" id="armStatus">
 Arm: connecting...
 </div>
+
+</div>
+
+<div class="popup-backdrop hidden" id="settingsPopup">
+<div class="popup">
+
+<div class="popup-header">
+<h3>Settings</h3>
+<button id="closeSettingsBtn" title="Close settings">&times;</button>
+</div>
+
+<div class="row">
+<label>
+<span>Maximum speed</span>
+<span><input class="setting-value-input" id="maxRpmNumber" type="number" min="1" max="300" step="1" value="50"><span style="margin-left:4px">RPM</span></span>
+</label>
+<input type="range" id="maxRpm" min="1" max="300" step="1" value="50">
+<span class="setting-description">Limits the fastest speed for both treads.</span>
+</div>
+
+<div class="row">
+<label>
+<span>Joystick section size</span>
+<span><input class="setting-value-input" id="angleStepNumber" type="number" min="1" max="45" step="1" value="6"><span style="margin-left:4px">&deg;</span></span>
+</label>
+<input type="range" id="angleStep" min="1" max="45" step="1" value="6">
+<span class="setting-description">Controls how much the joystick direction changes between steering steps.</span>
+</div>
+
+<div class="row">
+<label>
+<span>Kp</span>
+<input class="setting-value-input" id="kpNumber" type="number" min="0" max="100" step="0.1" value="10">
+</label>
+<input type="range" id="kp" min="0" max="100" step="0.1" value="10">
+<span class="setting-description">Controls how strongly the motors correct when speed is too low or too high.</span>
+</div>
+
+<div class="row">
+<label>
+<span>Ki</span>
+<input class="setting-value-input" id="kiNumber" type="number" min="0" max="100" step="0.1" value="10">
+</label>
+<input type="range" id="ki" min="0" max="100" step="0.1" value="10">
+<span class="setting-description">Corrects small speed errors that remain over time.</span>
+</div>
+
+<div class="row">
+<label>
+<span>Kd</span>
+<input class="setting-value-input" id="kdNumber" type="number" min="0" max="10" step="0.01" value="0.1">
+</label>
+<input type="range" id="kd" min="0" max="10" step="0.01" value="0.1">
+<span class="setting-description">Reduces sudden changes and helps the motors settle smoothly.</span>
+</div>
+
+<div class="toggle-row">
+<span>Tread synchronization</span>
+<input type="checkbox" id="syncEnabled" checked>
+</div>
+<span class="setting-description">Keeps the left and right treads moving together when the rover is not turning.</span>
+
+<div class="row">
+<label>
+<span>Sync gain</span>
+<input class="setting-value-input" id="syncGainNumber" type="number" min="0" max="100" step="1" value="50">
+</label>
+<input type="range" id="syncGain" min="0" max="100" step="1" value="50">
+<span class="setting-description">Sets how quickly the rover corrects if one tread gets ahead of the other.</span>
+</div>
+
+<div class="buttons">
+<button id="resetSettingsBtn">Reset Defaults</button>
+<button id="saveSettingsBtn">Save Settings</button>
+</div>
+
+<div class="encoder" id="settingsStatus">Settings: loading...</div>
+
+</div>
+</div>
+
+<div class="settings wifi hidden" id="wifiPanel">
+
+<h3>Wi-Fi Pairing</h3>
+
+<div class="encoder" id="wifiStatus">Wi-Fi: checking...</div>
+
+<select id="wifiNetworks">
+<option value="">Scanning for networks...</option>
+</select>
+
+<input type="text" id="wifiSsid" placeholder="Wi-Fi network name">
+<input type="password" id="wifiPassword" placeholder="Wi-Fi password">
+
+<div class="buttons">
+<button id="refreshWifiBtn">Refresh</button>
+<button id="pairWifiBtn">Pair Wi-Fi</button>
+</div>
+
+<button id="forgetWifiBtn" style="margin-top:10px; width:100%">Forget Saved Wi-Fi</button>
 
 </div>
 
@@ -376,6 +616,281 @@ speed.addEventListener('input', () => {
 speed.addEventListener('change', () => {
     armGet('/speed?v=' + speed.value);
 });
+
+// ---------------- ROVER SETTINGS ----------------
+
+const sectionMenu = document.getElementById('sectionMenu');
+const drivePanel = document.getElementById('drivePanel');
+const armPanel = document.getElementById('armPanel');
+const wifiPanel = document.getElementById('wifiPanel');
+const settingsPopup = document.getElementById('settingsPopup');
+
+function showSection(section) {
+    settingsPopup.classList.add('hidden');
+
+    drivePanel.classList.toggle('hidden', section !== 'drive');
+    armPanel.classList.toggle('hidden', section !== 'arm');
+    wifiPanel.classList.toggle('hidden', section !== 'wifi');
+
+    if (section === 'settings')
+        settingsPopup.classList.remove('hidden');
+}
+
+sectionMenu.addEventListener('change', () => {
+    showSection(sectionMenu.value);
+});
+
+document.getElementById('gearBtn').addEventListener('click', () => {
+    sectionMenu.value = 'settings';
+    showSection('settings');
+});
+
+document.getElementById('closeSettingsBtn')
+    .addEventListener('click', () => {
+        settingsPopup.classList.add('hidden');
+        sectionMenu.value = 'drive';
+        showSection('drive');
+    });
+
+settingsPopup.addEventListener('click', event => {
+    if (event.target === settingsPopup) {
+        settingsPopup.classList.add('hidden');
+        sectionMenu.value = 'drive';
+        showSection('drive');
+    }
+});
+
+showSection('drive');
+
+const settingIds = [
+    'maxRpm',
+    'angleStep',
+    'kp',
+    'ki',
+    'kd',
+    'syncGain'
+];
+
+const settingLabels = {
+    maxRpm: 'maxRpmNumber',
+    angleStep: 'angleStepNumber',
+    kp: 'kpNumber',
+    ki: 'kiNumber',
+    kd: 'kdNumber',
+    syncGain: 'syncGainNumber'
+};
+
+function updateSettingLabels() {
+    settingIds.forEach(id => {
+        const input = document.getElementById(id);
+        document.getElementById(settingLabels[id]).value =
+            input.value;
+    });
+}
+
+settingIds.forEach(id => {
+    const range = document.getElementById(id);
+    const number = document.getElementById(settingLabels[id]);
+
+    range.addEventListener('input', () => {
+        number.value = range.value;
+    });
+
+    number.addEventListener('input', () => {
+        const min = Number(number.min);
+        const max = Number(number.max);
+        let value = Number(number.value);
+
+        if (Number.isFinite(value)) {
+            value = Math.max(min, Math.min(max, value));
+            range.value = value;
+        }
+    });
+
+    number.addEventListener('change', () => {
+        const min = Number(number.min);
+        const max = Number(number.max);
+        let value = Number(number.value);
+
+        if (!Number.isFinite(value))
+            value = Number(range.value);
+
+        value = Math.max(min, Math.min(max, value));
+        number.value = value;
+        range.value = value;
+    });
+});
+
+function applySettings(settings) {
+    document.getElementById('maxRpm').value = settings.maxRpm;
+    document.getElementById('angleStep').value = settings.angleStep;
+    document.getElementById('kp').value = settings.kp;
+    document.getElementById('ki').value = settings.ki;
+    document.getElementById('kd').value = settings.kd;
+    document.getElementById('syncEnabled').checked =
+        settings.syncEnabled;
+    document.getElementById('syncGain').value = settings.syncGain;
+    updateSettingLabels();
+}
+
+function saveSettings() {
+    const params = new URLSearchParams();
+
+    settingIds.forEach(id => {
+        params.set(id, document.getElementById(id).value);
+    });
+    params.set(
+        'syncEnabled',
+        document.getElementById('syncEnabled').checked ? '1' : '0'
+    );
+
+    document.getElementById('settingsStatus').textContent =
+        'Settings: saving...';
+
+    fetch('/settings?' + params.toString(), { method: 'POST' })
+        .then(r => r.json())
+        .then(settings => {
+            applySettings(settings);
+            document.getElementById('settingsStatus').textContent =
+                'Settings: saved';
+        })
+        .catch(() => {
+            document.getElementById('settingsStatus').textContent =
+                'Settings: save failed';
+        });
+}
+
+document.getElementById('saveSettingsBtn')
+    .addEventListener('click', saveSettings);
+
+document.getElementById('resetSettingsBtn')
+    .addEventListener('click', () => {
+        applySettings({
+            maxRpm: 50,
+            angleStep: 6,
+            kp: 10,
+            ki: 10,
+            kd: 0.1,
+            syncEnabled: true,
+            syncGain: 50
+        });
+        saveSettings();
+    });
+
+fetch('/settings')
+    .then(r => r.json())
+    .then(settings => {
+        applySettings(settings);
+        document.getElementById('settingsStatus').textContent =
+            'Settings: loaded';
+    })
+    .catch(() => {
+        document.getElementById('settingsStatus').textContent =
+            'Settings: load failed';
+    });
+
+// ---------------- WI-FI PAIRING ----------------
+
+const wifiStatus = document.getElementById('wifiStatus');
+const wifiNetworks = document.getElementById('wifiNetworks');
+const wifiSsid = document.getElementById('wifiSsid');
+const wifiPassword = document.getElementById('wifiPassword');
+
+function refreshWifiStatus() {
+    fetch('/wifi/status')
+        .then(r => r.json())
+        .then(s => {
+            let text = 'Wi-Fi: ' + s.status +
+                ' | AP: ' + s.apIp;
+
+            if (s.connected)
+                text += ' | LAN: ' + s.staIp;
+            else if (s.ssid)
+                text += ' | Saved SSID: ' + s.ssid;
+
+            wifiStatus.textContent = text;
+        })
+        .catch(() => {
+            wifiStatus.textContent = 'Wi-Fi: unavailable';
+        });
+}
+
+function refreshWifiNetworks() {
+    wifiNetworks.innerHTML =
+        '<option value="">Scanning for networks...</option>';
+
+    fetch('/wifi/networks')
+        .then(r => r.json())
+        .then(networks => {
+            wifiNetworks.innerHTML =
+                '<option value="">Select a network...</option>';
+
+            networks.forEach(network => {
+                if (!network.ssid) return;
+
+                const option = document.createElement('option');
+                option.value = network.ssid;
+                option.textContent =
+                    network.ssid + ' (' + network.rssi + ' dBm)';
+                wifiNetworks.appendChild(option);
+            });
+        })
+        .catch(() => {
+            wifiNetworks.innerHTML =
+                '<option value="">Scan failed</option>';
+        });
+}
+
+wifiNetworks.addEventListener('change', () => {
+    wifiSsid.value = wifiNetworks.value;
+});
+
+document.getElementById('refreshWifiBtn')
+    .addEventListener('click', refreshWifiNetworks);
+
+document.getElementById('pairWifiBtn')
+    .addEventListener('click', () => {
+        const ssid = wifiSsid.value.trim();
+        const password = wifiPassword.value;
+
+        if (!ssid) {
+            wifiStatus.textContent =
+                'Wi-Fi: enter or select a network';
+            return;
+        }
+
+        wifiStatus.textContent = 'Wi-Fi: pairing...';
+
+        const params = new URLSearchParams();
+        params.set('ssid', ssid);
+        params.set('password', password);
+
+        fetch('/wifi/pair?' + params.toString(), { method: 'POST' })
+            .then(r => r.json())
+            .then(result => {
+                wifiStatus.textContent =
+                    'Wi-Fi: ' + result.status;
+                setTimeout(refreshWifiStatus, 3000);
+            })
+            .catch(() => {
+                wifiStatus.textContent =
+                    'Wi-Fi: pairing request failed';
+            });
+    });
+
+document.getElementById('forgetWifiBtn')
+    .addEventListener('click', () => {
+        fetch('/wifi/forget', { method: 'POST' })
+            .then(r => r.json())
+            .then(result => {
+                wifiStatus.textContent =
+                    'Wi-Fi: ' + result.status;
+                refreshWifiStatus();
+            });
+    });
+
+refreshWifiStatus();
+refreshWifiNetworks();
 
 document.getElementById('homeBtn').addEventListener('click', () => {
 

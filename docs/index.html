@@ -24,6 +24,79 @@ body {
 h2 { margin: 0 0 20px; }
 h3 { margin: 0 0 8px; }
 
+.top-bar {
+    width: 100%;
+    max-width: 360px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.top-bar h2 { margin: 0; }
+
+#sectionMenu {
+    width: 160px;
+    padding: 9px 10px;
+    border: 1px solid #555;
+    border-radius: 8px;
+    background: #222;
+    color: #fff;
+    font-size: 14px;
+}
+
+#gearBtn {
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    flex: 0 0 42px;
+    border-radius: 50%;
+    font-size: 21px;
+}
+
+.hidden { display: none !important; }
+
+.popup-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: rgba(0, 0, 0, 0.72);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.popup {
+    width: 100%;
+    max-width: 420px;
+    max-height: 82vh;
+    overflow-y: auto;
+    background: #1b1b1b;
+    border: 1px solid #444;
+    border-radius: 12px;
+    padding: 18px;
+    box-sizing: border-box;
+}
+
+.popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.popup-header h3 { margin: 0; }
+
+#closeSettingsBtn {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    padding: 0;
+    border-radius: 50%;
+}
+
 .joystick-container {
     width: 220px;
     height: 220px;
@@ -103,7 +176,26 @@ h3 { margin: 0 0 8px; }
     font-size: 15px;
 }
 
+.setting-value-input {
+    width: 72px;
+    padding: 5px;
+    margin-left: 8px;
+    border: 1px solid #555;
+    border-radius: 6px;
+    background: #222;
+    color: #fff;
+    text-align: right;
+}
+
 .row { margin: 12px 0; }
+
+.setting-description {
+    display: block;
+    margin-top: 5px;
+    color: #999;
+    font-size: 12px;
+    line-height: 1.35;
+}
 
 .row label {
     display: flex;
@@ -137,8 +229,19 @@ button {
 
 <body>
 
+<div class="top-bar">
 <h2>Rover Control</h2>
-<div id="demoBanner" style="width:100%;max-width:360px;margin:-10px 0 18px;padding:10px;background:#665500;color:#fff;text-align:center;border-radius:8px;font-size:14px;">Preview mode - connect to Rover-AP for live control</div>
+<button id="gearBtn" title="Open settings">&#9881;</button>
+</div>
+
+<select id="sectionMenu" aria-label="Section">
+<option value="drive">Drive</option>
+<option value="arm">Arm</option>
+<option value="settings">Settings</option>
+<option value="wifi">Wi-Fi</option>
+</select>
+
+<div id="drivePanel">
 
 <div class="joystick-container" id="stick">
     <div class="joystick-handle" id="handle"></div>
@@ -151,8 +254,9 @@ Up/Down = Throttle &nbsp;|&nbsp; Left/Right = Turn
 <div class="encoder" id="encoderReading">
 Wheel RPM: 0 | 0
 </div>
+</div>
 
-<div class="arm">
+<div class="arm hidden" id="armPanel">
 
 <h3>Arm</h3>
 
@@ -179,61 +283,72 @@ Arm: connecting...
 
 </div>
 
-<div class="settings">
+<div class="popup-backdrop hidden" id="settingsPopup">
+<div class="popup">
 
+<div class="popup-header">
 <h3>Settings</h3>
+<button id="closeSettingsBtn" title="Close settings">&times;</button>
+</div>
 
 <div class="row">
 <label>
 <span>Maximum speed</span>
-<span><span id="maxRpmVal">50</span> RPM</span>
+<span><input class="setting-value-input" id="maxRpmNumber" type="number" min="1" max="300" step="1" value="50"><span style="margin-left:4px">RPM</span></span>
 </label>
 <input type="range" id="maxRpm" min="1" max="300" step="1" value="50">
+<span class="setting-description">Limits the fastest speed for both treads.</span>
 </div>
 
 <div class="row">
 <label>
 <span>Joystick section size</span>
-<span><span id="angleStepVal">6</span>&deg;</span>
+<span><input class="setting-value-input" id="angleStepNumber" type="number" min="1" max="45" step="1" value="6"><span style="margin-left:4px">&deg;</span></span>
 </label>
 <input type="range" id="angleStep" min="1" max="45" step="1" value="6">
+<span class="setting-description">Controls how much the joystick direction changes between steering steps.</span>
 </div>
 
 <div class="row">
 <label>
 <span>Kp</span>
-<span id="kpVal">10</span>
+<input class="setting-value-input" id="kpNumber" type="number" min="0" max="100" step="0.1" value="10">
 </label>
 <input type="range" id="kp" min="0" max="100" step="0.1" value="10">
+<span class="setting-description">Controls how strongly the motors correct when speed is too low or too high.</span>
 </div>
 
 <div class="row">
 <label>
 <span>Ki</span>
-<span id="kiVal">10</span>
+<input class="setting-value-input" id="kiNumber" type="number" min="0" max="100" step="0.1" value="10">
 </label>
 <input type="range" id="ki" min="0" max="100" step="0.1" value="10">
+<span class="setting-description">Corrects small speed errors that remain over time.</span>
 </div>
 
 <div class="row">
 <label>
 <span>Kd</span>
-<span id="kdVal">0.1</span>
+<input class="setting-value-input" id="kdNumber" type="number" min="0" max="10" step="0.01" value="0.1">
 </label>
 <input type="range" id="kd" min="0" max="10" step="0.01" value="0.1">
+<span class="setting-description">Reduces sudden changes and helps the motors settle smoothly.</span>
 </div>
 
 <div class="toggle-row">
 <span>Tread synchronization</span>
 <input type="checkbox" id="syncEnabled" checked>
 </div>
+<span class="setting-description">Keeps the left and right treads moving together when the rover is not turning.</span>
 
 <div class="row">
 <label>
 <span>Sync gain</span>
-<span id="syncGainVal">50</span>
+<input class="setting-value-input" id="syncGainNumber" type="number" min="0" max="100" step="1" value="50">
 </label>
 <input type="range" id="syncGain" min="0" max="100" step="1" value="50">
+<span class="setting-description">Sets how quickly the rover corrects if one tread gets ahead of the other.</span>
 </div>
 
 <div class="buttons">
@@ -244,8 +359,9 @@ Arm: connecting...
 <div class="encoder" id="settingsStatus">Settings: loading...</div>
 
 </div>
+</div>
 
-<div class="settings wifi">
+<div class="settings wifi hidden" id="wifiPanel">
 
 <h3>Wi-Fi Pairing</h3>
 
@@ -268,47 +384,7 @@ Arm: connecting...
 </div>
 
 <script>
-
-// Static preview has no ESP32 backend. Return sample responses so every
-// UI section can be evaluated without joining the Rover-AP Wi-Fi.
-if (!window.location.hostname.startsWith('192.168.4.')) {
-    const previewFetch = window.fetch.bind(window);
-    window.fetch = (url, options) => {
-        if (typeof url === 'string' && url.startsWith('/')) {
-            if (url.startsWith('/settings'))
-                return Promise.resolve(new Response(JSON.stringify({
-                    maxRpm: 50,
-                    angleStep: 6,
-                    kp: 10,
-                    ki: 10,
-                    kd: 0.1,
-                    syncEnabled: true,
-                    syncGain: 50
-                }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
-
-            if (url.startsWith('/encoder'))
-                return Promise.resolve(new Response('0 | 0',
-                    { status: 200, headers: { 'Content-Type': 'text/plain' } }));
-
-            if (url.startsWith('/wifi/status'))
-                return Promise.resolve(new Response(JSON.stringify({
-                    apIp: '192.168.4.1',
-                    staIp: '0.0.0.0',
-                    ssid: '',
-                    connected: false,
-                    status: 'Preview mode'
-                }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
-
-            if (url.startsWith('/wifi/networks'))
-                return Promise.resolve(new Response('[]',
-                    { status: 200, headers: { 'Content-Type': 'application/json' } }));
-
-            return Promise.resolve(new Response('OK',
-                { status: 200, headers: { 'Content-Type': 'text/plain' } }));
-        }
-        return previewFetch(url, options);
-    };
-}
+if (!window.location.hostname.startsWith('192.168.4.')) { const previewFetch = window.fetch.bind(window); window.fetch = (url, options) => { if (typeof url === 'string' && url.startsWith('/')) { if (url.startsWith('/settings')) return Promise.resolve(new Response(JSON.stringify({maxRpm:50,angleStep:6,kp:10,ki:10,kd:0.1,syncEnabled:true,syncGain:50}), {status:200,headers:{'Content-Type':'application/json'}})); if (url.startsWith('/encoder')) return Promise.resolve(new Response('0 | 0', {status:200,headers:{'Content-Type':'text/plain'}})); if (url.startsWith('/wifi/status')) return Promise.resolve(new Response(JSON.stringify({apIp:'192.168.4.1',staIp:'0.0.0.0',ssid:',connected:false,status:'Preview mode'}), {status:200,headers:{'Content-Type':'application/json'}})); if (url.startsWith('/wifi/networks')) return Promise.resolve(new Response('[]', {status:200,headers:{'Content-Type':'application/json'}})); return Promise.resolve(new Response('OK', {status:200,headers:{'Content-Type':'text/plain'}})); } return previewFetch(url, options); }; }
 
 // ---------------- DRIVE CONTROLS ----------------
 
@@ -446,7 +522,7 @@ setInterval(() => sendMove(false), 20);
 
 setInterval(() => {
 
-    fetch('/encoder').catch(() => { throw new Error('Demo mode'); })
+    fetch('/encoder')
         .then(r => r.text())
         .then(t => {
             encoderReading.textContent =
@@ -540,6 +616,49 @@ speed.addEventListener('change', () => {
 
 // ---------------- ROVER SETTINGS ----------------
 
+const sectionMenu = document.getElementById('sectionMenu');
+const drivePanel = document.getElementById('drivePanel');
+const armPanel = document.getElementById('armPanel');
+const wifiPanel = document.getElementById('wifiPanel');
+const settingsPopup = document.getElementById('settingsPopup');
+
+function showSection(section) {
+    settingsPopup.classList.add('hidden');
+
+    drivePanel.classList.toggle('hidden', section !== 'drive');
+    armPanel.classList.toggle('hidden', section !== 'arm');
+    wifiPanel.classList.toggle('hidden', section !== 'wifi');
+
+    if (section === 'settings')
+        settingsPopup.classList.remove('hidden');
+}
+
+sectionMenu.addEventListener('change', () => {
+    showSection(sectionMenu.value);
+});
+
+document.getElementById('gearBtn').addEventListener('click', () => {
+    sectionMenu.value = 'settings';
+    showSection('settings');
+});
+
+document.getElementById('closeSettingsBtn')
+    .addEventListener('click', () => {
+        settingsPopup.classList.add('hidden');
+        sectionMenu.value = 'drive';
+        showSection('drive');
+    });
+
+settingsPopup.addEventListener('click', event => {
+    if (event.target === settingsPopup) {
+        settingsPopup.classList.add('hidden');
+        sectionMenu.value = 'drive';
+        showSection('drive');
+    }
+});
+
+showSection('drive');
+
 const settingIds = [
     'maxRpm',
     'angleStep',
@@ -550,25 +669,53 @@ const settingIds = [
 ];
 
 const settingLabels = {
-    maxRpm: 'maxRpmVal',
-    angleStep: 'angleStepVal',
-    kp: 'kpVal',
-    ki: 'kiVal',
-    kd: 'kdVal',
-    syncGain: 'syncGainVal'
+    maxRpm: 'maxRpmNumber',
+    angleStep: 'angleStepNumber',
+    kp: 'kpNumber',
+    ki: 'kiNumber',
+    kd: 'kdNumber',
+    syncGain: 'syncGainNumber'
 };
 
 function updateSettingLabels() {
     settingIds.forEach(id => {
         const input = document.getElementById(id);
-        document.getElementById(settingLabels[id]).textContent =
+        document.getElementById(settingLabels[id]).value =
             input.value;
     });
 }
 
 settingIds.forEach(id => {
-    document.getElementById(id).addEventListener('input',
-        updateSettingLabels);
+    const range = document.getElementById(id);
+    const number = document.getElementById(settingLabels[id]);
+
+    range.addEventListener('input', () => {
+        number.value = range.value;
+    });
+
+    number.addEventListener('input', () => {
+        const min = Number(number.min);
+        const max = Number(number.max);
+        let value = Number(number.value);
+
+        if (Number.isFinite(value)) {
+            value = Math.max(min, Math.min(max, value));
+            range.value = value;
+        }
+    });
+
+    number.addEventListener('change', () => {
+        const min = Number(number.min);
+        const max = Number(number.max);
+        let value = Number(number.value);
+
+        if (!Number.isFinite(value))
+            value = Number(range.value);
+
+        value = Math.max(min, Math.min(max, value));
+        number.value = value;
+        range.value = value;
+    });
 });
 
 function applySettings(settings) {
