@@ -181,6 +181,8 @@ function updatePosition(clientX, clientY) {
 
     throttle = Math.round((-dy / maxDist) * 1023);
     steer = Math.round((dx / maxDist) * 1023);
+
+    sendMove(false);
 }
 
 function reset() {
@@ -189,6 +191,8 @@ function reset() {
 
     throttle = 0;
     steer = 0;
+
+    sendMove(true);
 }
 
 container.addEventListener('touchstart', () => {
@@ -227,11 +231,57 @@ window.addEventListener('mouseup', () => {
     }
 });
 
-setInterval(() => {
+// Send joystick commands without a backlog: only one /move request is in
+// flight at a time, and the newest joystick value is always the one sent.
+// Requests piling up behind a slow one (the old fixed-interval fetch)
+// are what caused the lag.
+let moveBusy = false;
+let lastSent = '';
+let lastSentTime = 0;
 
-    fetch(`/move?throttle=${throttle}&steer=${steer}`);
+function sendMove(force) {
 
-}, 150);
+    const q = `throttle=${throttle}&steer=${steer}`;
+    const now = Date.now();
+
+    if (moveBusy) return;
+
+    // Send changes immediately; otherwise keepalive every 100 ms
+    // (firmware stops the motors after 500 ms without a command)
+    if (!force && q === lastSent && now - lastSentTime < 100) return;
+
+    moveBusy = true;
+    lastSent = q;
+    lastSentTime = now;
+
+    // Give up on a request after 300 ms. Without this, one request that
+    // never gets an answer (Wi-Fi hiccup, ESP32 busy) leaves moveBusy
+    // stuck at true and the joystick stops sending forever.
+    const ctrl = (typeof AbortController !== 'undefined')
+        ? new AbortController() : null;
+
+    const timer = setTimeout(() => {
+        if (ctrl) ctrl.abort();
+        done();
+    }, 300);
+
+    let finished = false;
+
+    function done() {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        moveBusy = false;
+        // Joystick moved while waiting: send the new value now
+        if (`throttle=${throttle}&steer=${steer}` !== lastSent)
+            sendMove(true);
+    }
+
+    fetch('/move?' + q, ctrl ? { signal: ctrl.signal } : {})
+        .then(done, done);
+}
+
+setInterval(() => sendMove(false), 20);
 
 setInterval(() => {
 

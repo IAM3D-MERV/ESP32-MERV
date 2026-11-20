@@ -37,8 +37,11 @@ const unsigned long RUN_DURATION_MS = 15000;
 // JOYSTICK CONFIGURATION
 // =====================================================================
 
-// Maximum requested wheel speed
-const float MAX_WHEEL_RPM = 10.0f;
+// Maximum requested wheel speed at full joystick deflection.
+// Every joystick section's target RPM scales with this value.
+// The motor's full speed is FULL_RPM in pid.cpp (173); set this to 173
+// for 100% duty at full stick.
+const float MAX_WHEEL_RPM = 50.0f;
 
 // Communication timeout in milliseconds
 const unsigned long TIMEOUT_MS = 500;
@@ -49,7 +52,7 @@ const unsigned long TIMEOUT_MS = 500;
 
 void setup() {
 
-    Serial.begin(9600);
+    Serial.begin(115200);
 
     // -----------------------------------------------------
     // INITIALIZE MOTOR SYSTEM

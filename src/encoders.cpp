@@ -10,8 +10,11 @@
 #define ENCODER_2B 14
 
 // configuration
-const bool INVERT_ENC1 = true;
-const bool INVERT_ENC2 = false;
+// Flipped after rewiring: both encoders read negative RPM while their
+// motors were driven forward (positive PWM), which made the PID run away
+// to full power. Positive PWM must give positive RPM.
+const bool INVERT_ENC1 = false;
+const bool INVERT_ENC2 = true;
 
 // Encoder state
 volatile long encoderCount = 0;

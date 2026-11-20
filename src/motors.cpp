@@ -2,105 +2,66 @@
 #include "motors.h"
 
 // =====================================================================
-// Motor Pin Configuration
+// MOTOR PIN CONFIGURATION — CYTRON MDD20A
 // =====================================================================
 
 // Motor 1
-#define ENA 25
-#define IN1 16
-#define IN2 17
+#define PWM1 25
+#define DIR1 17
 
 // Motor 2
-#define ENB 26
-#define IN3 18
-#define IN4 19
+#define PWM2 26
+#define DIR2 19
 
+// Connect ESP32 GND to MDD20A signal GND.
+// GPIO 16 and GPIO 18 remain disconnected.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// PWM Configuration
+// =====================================================================
+// PWM CONFIGURATION
 // ESP32 Arduino 3.x LEDC PWM
-// 10-bit resolution: 0 to 1023, 20 kHz frequency
+// =====================================================================
 
 constexpr uint32_t PWM_FREQUENCY_HZ = 20000;
 constexpr uint8_t PWM_RESOLUTION_BITS = 10;
+constexpr int MAX_PWM = 1023;
 
-// Motor Direction Configuration
+// Motor direction configuration
 const bool INVERT_MOTOR1 = true;
 const bool INVERT_MOTOR2 = false;
 
-// Motor 1 Control
+// =====================================================================
+// MOTOR 1 CONTROL
+// =====================================================================
+
 void setMotor1(int pwm) {
 
-// Reverse direction if configured
+    pwm = constrain(pwm, -MAX_PWM, MAX_PWM);
+
     if (INVERT_MOTOR1)
         pwm = -pwm;
 
-// Direction control
-    digitalWrite(IN1, pwm > 0);
-    digitalWrite(IN2, pwm < 0);
+    // MDD20A: LOW = A positive, HIGH = B positive
+    digitalWrite(DIR1, pwm < 0);
 
-// PWM speed control
-    ledcWrite(ENA, constrain(abs(pwm), 0, 1023));
+    // Zero PWM applies braking.
+    ledcWrite(PWM1, abs(pwm));
 }
 
-// Motor 2 Control
+// =====================================================================
+// MOTOR 2 CONTROL
+// =====================================================================
+
 void setMotor2(int pwm) {
 
-// Reverse direction if configured
+    pwm = constrain(pwm, -MAX_PWM, MAX_PWM);
+
     if (INVERT_MOTOR2)
         pwm = -pwm;
 
-// Direction control
-    digitalWrite(IN3, pwm > 0);
-    digitalWrite(IN4, pwm < 0);
+    digitalWrite(DIR2, pwm < 0);
 
-// PWM speed control
-    ledcWrite(ENB, constrain(abs(pwm), 0, 1023));
+    // Zero PWM applies braking.
+    ledcWrite(PWM2, abs(pwm));
 }
 
 // =====================================================================
@@ -108,40 +69,48 @@ void setMotor2(int pwm) {
 // =====================================================================
 
 bool initMotors() {
-    // Configure direction pins
-    pinMode(IN1, OUTPUT);
-    pinMode(IN2, OUTPUT);
-    pinMode(IN3, OUTPUT);
-    pinMode(IN4, OUTPUT);
 
-    // Staty with both motors stopped
-    digitalWrite(IN1, LOW);
-    digitalWrite(IN2, LOW);
-    digitalWrite(IN3, LOW);
-    digitalWrite(IN4, LOW);
+    // Configure direction outputs.
+    pinMode(DIR1, OUTPUT);
+    pinMode(DIR2, OUTPUT);
 
-    // Configure PWM pins
-    pinMode(ENA, OUTPUT);
-    pinMode(ENB, OUTPUT);
+    digitalWrite(DIR1, LOW);
+    digitalWrite(DIR2, LOW);
 
-    // Initialize ESPN32 LEDC PWM
-    bool pwmAReady = ledcAttach(
-        ENA,
+    // Hold PWM inputs LOW before attaching LEDC.
+    pinMode(PWM1, OUTPUT);
+    pinMode(PWM2, OUTPUT);
+
+    digitalWrite(PWM1, LOW);
+    digitalWrite(PWM2, LOW);
+
+    // Configure PWM outputs.
+    bool pwm1Ready = ledcAttach(
+        PWM1,
         PWM_FREQUENCY_HZ,
         PWM_RESOLUTION_BITS
     );
-    bool pwmBReady = ledcAttach(
-        ENB,
+
+    if (pwm1Ready)
+        ledcWrite(PWM1, 0);
+
+    bool pwm2Ready = ledcAttach(
+        PWM2,
         PWM_FREQUENCY_HZ,
         PWM_RESOLUTION_BITS
     );
-    if (!pwmAReady || !pwmBReady) {
+
+    if (pwm2Ready)
+        ledcWrite(PWM2, 0);
+
+    if (!pwm1Ready || !pwm2Ready) {
         Serial.println(
             "ERROR: Motor PWM initialization failed"
         );
         return false;
     }
-    // Ensure both motors are stopped at startup
+
+    // Ensure both motors are stopped at startup.
     setMotor1(0);
     setMotor2(0);
 

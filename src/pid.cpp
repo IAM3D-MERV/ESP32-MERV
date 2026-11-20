@@ -60,7 +60,18 @@ const float COUNTS_PER_WHEEL_REV =
     COUNTS_PER_MOTOR_REV * GEAR_RATIO;
 
 const float FULL_RPM = 173.0f;
-const float ACCEL_RPM_PER_S = 20.0f;
+
+// Acceleration ramp. ENABLE_RAMP = false sends joystick commands to the
+// PID immediately (no ramp).
+//
+// Like the RC rover code, speeding up is gentle and slowing down /
+// stopping is 4x faster, so the rover still stops reasonably quickly:
+//   0 -> full speed (173 RPM): ~3.5 s
+//   full speed -> stop:        ~0.9 s
+// Raise ACCEL_RPM_PER_S for a snappier start, lower it for smoother.
+const bool ENABLE_RAMP = true;
+const float ACCEL_RPM_PER_S = 50.0f;
+const float DECEL_RPM_PER_S = 200.0f;
 
 // =====================================================================
 // PID GAINS
@@ -68,11 +79,36 @@ const float ACCEL_RPM_PER_S = 20.0f;
 
 const float KFF = 1023.0f / FULL_RPM;
 
-float KP = 6.0f;
-float KI = 40.0f;
-float KD = 0.05f;
+float KP = 10.0f;
+float KI = 10.0f;
+float KD = 0.1f;
+
+// Anti-windup: maximum PWM the integral term may contribute (out of
+// 1023). Feedforward supplies most of the drive; the integral only needs
+// to correct for friction/load, so it is capped well below full scale.
+const float I_LIMIT_PWM = 300.0f;
+
+// Motor deadband compensation (this is NOT a joystick deadzone).
+// A DC motor through an L298N doesn't turn until the PWM is high enough
+// to overcome the driver's voltage drop and static friction; below that
+// it just whines. MIN_PWM is that start-up threshold: any nonzero
+// command is mapped into MIN_PWM..1023 instead of 0..1023, so the
+// smallest stick movement already turns the treads.
+//
+// To calibrate: set MIN_PWM = 0, raise throttle slowly, and note the
+// `pwm` value in the serial monitor at the moment each tread starts
+// turning. Use the larger of the two (left/right) here.
+const float MIN_PWM = 350.0f;
 
 // Wheel synchronization
+// Keeps both wheels on their commanded paths relative to each other,
+// both driving straight and turning (each wheel's target position
+// advances at its own target RPM).
+//
+// Requires BOTH motors and encoders. On a single-motor test rig set this
+// to false: encoder 2 never moves, so the sync loop holds motor 1 back
+// by up to MAX_SYNC_RPM and it barely turns.
+const bool ENABLE_SYNC = true;
 float KSYNC = 50.0f;
 const float MAX_SYNC_RPM = 10.0f;
 
@@ -91,10 +127,11 @@ struct Pid {
     float integral;
     float prevMeas;
     float dFilt;
+    float prevTarget;
 };
 
-Pid pid1 = {0, 0, 0};
-Pid pid2 = {0, 0, 0};
+Pid pid1 = {0, 0, 0, 0};
+Pid pid2 = {0, 0, 0, 0};
 
 // Desired RPM from web joystick or automatic test
 float cmdRpm1 = 0;
@@ -107,6 +144,10 @@ float rampRpm2 = 0;
 // Measured wheel speeds
 float meas1 = 0;
 float meas2 = 0;
+
+// Final PID targets (after sync correction), for debug printing
+float tgtOut1 = 0;
+float tgtOut2 = 0;
 
 // Output PWM values
 int pwm1 = 0;
@@ -141,6 +182,29 @@ float rampToward(
     return max(cur - maxStep, target);
 }
 
+// Ramp with separate speed-up and slow-down rates. Moving toward zero
+// (slowing, stopping, or the first half of a direction reversal) uses
+// the faster decel rate; moving away from zero uses the accel rate.
+float rampSpeed(float cur, float target, float dt) {
+
+    bool slowingDown =
+        fabsf(target) < fabsf(cur) ||
+        target * cur < 0.0f;
+
+    float rate = slowingDown
+        ? DECEL_RPM_PER_S
+        : ACCEL_RPM_PER_S;
+
+    float next = rampToward(cur, target, rate * dt);
+
+    // Don't overshoot past zero at the fast decel rate during a
+    // reversal; stop at zero, then accelerate the other way.
+    if (cur * next < 0.0f)
+        next = 0.0f;
+
+    return next;
+}
+
 // =====================================================================
 // RESET PID
 // =====================================================================
@@ -150,6 +214,7 @@ void resetPid(Pid &p, float meas) {
     p.integral = 0;
     p.prevMeas = meas;
     p.dFilt = 0;
+    p.prevTarget = 0;
 }
 
 // =====================================================================
@@ -167,6 +232,13 @@ int pidStep(
         resetPid(p, meas);
         return 0;
     }
+
+    // Anti-windup (3): direction reversal. Integral built up driving one
+    // way must not fight the motor when the target flips sign.
+    if (target * p.prevTarget < 0.0f)
+        p.integral = 0;
+
+    p.prevTarget = target;
 
     float err = target - meas;
 
@@ -191,7 +263,8 @@ int pidStep(
         KI * p.integral -
         KD * p.dFilt;
 
-    // Anti-windup
+    // Anti-windup (1): conditional integration. Stop integrating while
+    // the output is saturated and the error would push it further.
     bool saturatedHigh =
         unsat >= 1023.0f && err > 0;
 
@@ -202,6 +275,13 @@ int pidStep(
         p.integral += err * dt;
     }
 
+    // Anti-windup (2): clamp the integral so its contribution can never
+    // exceed I_LIMIT_PWM, no matter how long an error persists (stall,
+    // wheel held, slow ramp, etc.).
+    const float iMax = I_LIMIT_PWM / KI;
+
+    p.integral = constrain(p.integral, -iMax, iMax);
+
     // Final controller output
     float out =
         ff +
@@ -209,7 +289,20 @@ int pidStep(
         KI * p.integral -
         KD * p.dFilt;
 
-    return constrain((int)out, -1023, 1023);
+    out = constrain(out, -1023.0f, 1023.0f);
+
+    // If the PID wants the opposite direction from the target (it's
+    // trying to brake), let the motor coast instead of reversing it.
+    // Prevents the compensation below from jerking it backwards.
+    if (out * target <= 0.0f)
+        return 0;
+
+    // Deadband compensation: map 0..1023 to MIN_PWM..1023 (linear)
+    float mag =
+        MIN_PWM +
+        fabsf(out) * (1023.0f - MIN_PWM) / 1023.0f;
+
+    return (int)(out > 0 ? mag : -mag);
 }
 
 } // End private namespace
@@ -289,13 +382,16 @@ void controlUpdate() {
     // SMOOTH ACCELERATION
     // -----------------------------------------------------
 
-    float step = ACCEL_RPM_PER_S * dt;
+    if (ENABLE_RAMP) {
 
-    rampRpm1 =
-        rampToward(rampRpm1, cmdRpm1, step);
+        rampRpm1 = rampSpeed(rampRpm1, cmdRpm1, dt);
+        rampRpm2 = rampSpeed(rampRpm2, cmdRpm2, dt);
 
-    rampRpm2 =
-        rampToward(rampRpm2, cmdRpm2, step);
+    } else {
+
+        rampRpm1 = cmdRpm1;
+        rampRpm2 = cmdRpm2;
+    }
 
     // -----------------------------------------------------
     // WHEEL POSITION CALCULATION
@@ -331,11 +427,13 @@ void controlUpdate() {
         (pos1 - targetPos1) -
         (pos2 - targetPos2);
 
-    float corr = constrain(
-        KSYNC * syncErr,
-        -MAX_SYNC_RPM,
-        MAX_SYNC_RPM
-    );
+    float corr = ENABLE_SYNC
+        ? constrain(
+              KSYNC * syncErr,
+              -MAX_SYNC_RPM,
+              MAX_SYNC_RPM
+          )
+        : 0.0f;
 
     float tgt1 = rampRpm1;
     float tgt2 = rampRpm2;
@@ -349,6 +447,9 @@ void controlUpdate() {
     // -----------------------------------------------------
     // PID OUTPUT
     // -----------------------------------------------------
+
+    tgtOut1 = tgt1;
+    tgtOut2 = tgt2;
 
     pwm1 = pidStep(pid1, tgt1, meas1, dt);
     pwm2 = pidStep(pid2, tgt2, meas2, dt);
@@ -374,11 +475,18 @@ void printStatus() {
 
     lastPrint = now;
 
-    Serial.print("tgt ");
-    Serial.print(rampRpm1, 1);
+    // cmd = joystick request, tgt = what the PID actually receives
+    Serial.print("cmd ");
+    Serial.print(cmdRpm1, 1);
 
     Serial.print("/");
-    Serial.print(rampRpm2, 1);
+    Serial.print(cmdRpm2, 1);
+
+    Serial.print(" tgt ");
+    Serial.print(tgtOut1, 1);
+
+    Serial.print("/");
+    Serial.print(tgtOut2, 1);
 
     Serial.print(" | L rpm ");
     Serial.print(meas1, 1);

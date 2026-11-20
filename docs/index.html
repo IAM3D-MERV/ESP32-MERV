@@ -1,0 +1,812 @@
+﻿
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Rover Control</title>
+<meta name="viewport"
+content="width=device-width, initial-scale=1, user-scalable=no">
+
+<style>
+body {
+    margin: 0;
+    background: #111;
+    color: #fff;
+    font-family: sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 16px 40px;
+    box-sizing: border-box;
+}
+
+h2 { margin: 0 0 20px; }
+h3 { margin: 0 0 8px; }
+
+.joystick-container {
+    width: 220px;
+    height: 220px;
+    background: #222;
+    border-radius: 50%;
+    position: relative;
+    touch-action: none;
+    border: 2px solid #444;
+    flex-shrink: 0;
+}
+
+.joystick-handle {
+    width: 90px;
+    height: 90px;
+    background: #4a90e2;
+    border-radius: 50%;
+    position: absolute;
+    top: 65px;
+    left: 65px;
+    touch-action: none;
+}
+
+.label {
+    text-align: center;
+    margin-top: 12px;
+    font-size: 14px;
+    color: #aaa;
+}
+
+.encoder {
+    text-align: center;
+    margin-top: 8px;
+    font-size: 13px;
+    color: #6c6;
+}
+
+.arm {
+    width: 100%;
+    max-width: 360px;
+    margin-top: 28px;
+    border-top: 1px solid #333;
+    padding-top: 20px;
+}
+
+.settings {
+    width: 100%;
+    max-width: 360px;
+    margin-top: 28px;
+    border-top: 1px solid #333;
+    padding-top: 20px;
+}
+
+.toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 12px 0;
+    color: #ccc;
+}
+
+.toggle-row input {
+    width: 22px;
+    height: 22px;
+}
+
+.wifi select,
+.wifi input[type=text],
+.wifi input[type=password] {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 8px 0;
+    padding: 10px;
+    border: 1px solid #555;
+    border-radius: 6px;
+    background: #222;
+    color: #fff;
+    font-size: 15px;
+}
+
+.row { margin: 12px 0; }
+
+.row label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: #ccc;
+    margin-bottom: 4px;
+}
+
+input[type=range] { width: 100%; }
+
+.buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+button {
+    flex: 1;
+    padding: 12px;
+    font-size: 15px;
+    border: none;
+    border-radius: 8px;
+    background: #333;
+    color: #fff;
+}
+
+#stopBtn { background: #a33; }
+</style>
+</head>
+
+<body>
+
+<h2>Rover Control</h2>
+<div id="demoBanner" style="width:100%;max-width:360px;margin:-10px 0 18px;padding:10px;background:#665500;color:#fff;text-align:center;border-radius:8px;font-size:14px;">Preview mode - connect to Rover-AP for live control</div>
+
+<div class="joystick-container" id="stick">
+    <div class="joystick-handle" id="handle"></div>
+</div>
+
+<div class="label">
+Up/Down = Throttle &nbsp;|&nbsp; Left/Right = Turn
+</div>
+
+<div class="encoder" id="encoderReading">
+Wheel RPM: 0 | 0
+</div>
+
+<div class="arm">
+
+<h3>Arm</h3>
+
+<div id="joints"></div>
+
+<div class="row">
+<label>
+<span>Speed</span>
+<span><span id="speedVal">60</span>&deg;/s</span>
+</label>
+
+<input type="range"
+id="speed" min="10" max="1000" value="60">
+</div>
+
+<div class="buttons">
+<button id="homeBtn">Home</button>
+<button id="stopBtn">Stop</button>
+</div>
+
+<div class="encoder" id="armStatus">
+Arm: connecting...
+</div>
+
+</div>
+
+<div class="settings">
+
+<h3>Settings</h3>
+
+<div class="row">
+<label>
+<span>Maximum speed</span>
+<span><span id="maxRpmVal">50</span> RPM</span>
+</label>
+<input type="range" id="maxRpm" min="1" max="300" step="1" value="50">
+</div>
+
+<div class="row">
+<label>
+<span>Joystick section size</span>
+<span><span id="angleStepVal">6</span>&deg;</span>
+</label>
+<input type="range" id="angleStep" min="1" max="45" step="1" value="6">
+</div>
+
+<div class="row">
+<label>
+<span>Kp</span>
+<span id="kpVal">10</span>
+</label>
+<input type="range" id="kp" min="0" max="100" step="0.1" value="10">
+</div>
+
+<div class="row">
+<label>
+<span>Ki</span>
+<span id="kiVal">10</span>
+</label>
+<input type="range" id="ki" min="0" max="100" step="0.1" value="10">
+</div>
+
+<div class="row">
+<label>
+<span>Kd</span>
+<span id="kdVal">0.1</span>
+</label>
+<input type="range" id="kd" min="0" max="10" step="0.01" value="0.1">
+</div>
+
+<div class="toggle-row">
+<span>Tread synchronization</span>
+<input type="checkbox" id="syncEnabled" checked>
+</div>
+
+<div class="row">
+<label>
+<span>Sync gain</span>
+<span id="syncGainVal">50</span>
+</label>
+<input type="range" id="syncGain" min="0" max="100" step="1" value="50">
+</div>
+
+<div class="buttons">
+<button id="resetSettingsBtn">Reset Defaults</button>
+<button id="saveSettingsBtn">Save Settings</button>
+</div>
+
+<div class="encoder" id="settingsStatus">Settings: loading...</div>
+
+</div>
+
+<div class="settings wifi">
+
+<h3>Wi-Fi Pairing</h3>
+
+<div class="encoder" id="wifiStatus">Wi-Fi: checking...</div>
+
+<select id="wifiNetworks">
+<option value="">Scanning for networks...</option>
+</select>
+
+<input type="text" id="wifiSsid" placeholder="Wi-Fi network name">
+<input type="password" id="wifiPassword" placeholder="Wi-Fi password">
+
+<div class="buttons">
+<button id="refreshWifiBtn">Refresh</button>
+<button id="pairWifiBtn">Pair Wi-Fi</button>
+</div>
+
+<button id="forgetWifiBtn" style="margin-top:10px; width:100%">Forget Saved Wi-Fi</button>
+
+</div>
+
+<script>
+
+// Static preview has no ESP32 backend. Return sample responses so every
+// UI section can be evaluated without joining the Rover-AP Wi-Fi.
+if (!window.location.hostname.startsWith('192.168.4.')) {
+    const previewFetch = window.fetch.bind(window);
+    window.fetch = (url, options) => {
+        if (typeof url === 'string' && url.startsWith('/')) {
+            if (url.startsWith('/settings'))
+                return Promise.resolve(new Response(JSON.stringify({
+                    maxRpm: 50,
+                    angleStep: 6,
+                    kp: 10,
+                    ki: 10,
+                    kd: 0.1,
+                    syncEnabled: true,
+                    syncGain: 50
+                }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+            if (url.startsWith('/encoder'))
+                return Promise.resolve(new Response('0 | 0',
+                    { status: 200, headers: { 'Content-Type': 'text/plain' } }));
+
+            if (url.startsWith('/wifi/status'))
+                return Promise.resolve(new Response(JSON.stringify({
+                    apIp: '192.168.4.1',
+                    staIp: '0.0.0.0',
+                    ssid: '',
+                    connected: false,
+                    status: 'Preview mode'
+                }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+            if (url.startsWith('/wifi/networks'))
+                return Promise.resolve(new Response('[]',
+                    { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+            return Promise.resolve(new Response('OK',
+                { status: 200, headers: { 'Content-Type': 'text/plain' } }));
+        }
+        return previewFetch(url, options);
+    };
+}
+
+// ---------------- DRIVE CONTROLS ----------------
+
+const container = document.getElementById('stick');
+const handle = document.getElementById('handle');
+const encoderReading =
+    document.getElementById('encoderReading');
+
+const maxDist = 65;
+
+let dragging = false;
+let throttle = 0;
+let steer = 0;
+
+function updatePosition(clientX, clientY) {
+
+    const rect = container.getBoundingClientRect();
+
+    let dx = clientX - (rect.left + rect.width / 2);
+    let dy = clientY - (rect.top + rect.height / 2);
+
+    const dist = Math.sqrt(dx*dx + dy*dy);
+
+    if (dist > maxDist) {
+        dx = dx / dist * maxDist;
+        dy = dy / dist * maxDist;
+    }
+
+    handle.style.left = (65 + dx) + 'px';
+    handle.style.top = (65 + dy) + 'px';
+
+    throttle = Math.round((-dy / maxDist) * 1023);
+    steer = Math.round((dx / maxDist) * 1023);
+
+    sendMove(false);
+}
+
+function reset() {
+    handle.style.left = '65px';
+    handle.style.top = '65px';
+
+    throttle = 0;
+    steer = 0;
+
+    sendMove(true);
+}
+
+container.addEventListener('touchstart', () => {
+    dragging = true;
+});
+
+container.addEventListener('touchmove', (e) => {
+
+    if (!dragging) return;
+
+    const t = e.touches[0];
+
+    updatePosition(t.clientX, t.clientY);
+    e.preventDefault();
+
+}, { passive: false });
+
+container.addEventListener('touchend', () => {
+    dragging = false;
+    reset();
+});
+
+container.addEventListener('mousedown', () => {
+    dragging = true;
+});
+
+window.addEventListener('mousemove', (e) => {
+    if (dragging)
+        updatePosition(e.clientX, e.clientY);
+});
+
+window.addEventListener('mouseup', () => {
+    if (dragging) {
+        dragging = false;
+        reset();
+    }
+});
+
+// Send joystick commands without a backlog: only one /move request is in
+// flight at a time, and the newest joystick value is always the one sent.
+// Requests piling up behind a slow one (the old fixed-interval fetch)
+// are what caused the lag.
+let moveBusy = false;
+let lastSent = '';
+let lastSentTime = 0;
+
+function sendMove(force) {
+
+    const q = `throttle=${throttle}&steer=${steer}`;
+    const now = Date.now();
+
+    if (moveBusy) return;
+
+    // Send changes immediately; otherwise keepalive every 100 ms
+    // (firmware stops the motors after 500 ms without a command)
+    if (!force && q === lastSent && now - lastSentTime < 100) return;
+
+    moveBusy = true;
+    lastSent = q;
+    lastSentTime = now;
+
+    // Give up on a request after 300 ms. Without this, one request that
+    // never gets an answer (Wi-Fi hiccup, ESP32 busy) leaves moveBusy
+    // stuck at true and the joystick stops sending forever.
+    const ctrl = (typeof AbortController !== 'undefined')
+        ? new AbortController() : null;
+
+    const timer = setTimeout(() => {
+        if (ctrl) ctrl.abort();
+        done();
+    }, 300);
+
+    let finished = false;
+
+    function done() {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        moveBusy = false;
+        // Joystick moved while waiting: send the new value now
+        if (`throttle=${throttle}&steer=${steer}` !== lastSent)
+            sendMove(true);
+    }
+
+    fetch('/move?' + q, ctrl ? { signal: ctrl.signal } : {})
+        .then(done, done);
+}
+
+setInterval(() => sendMove(false), 20);
+
+setInterval(() => {
+
+    fetch('/encoder').catch(() => { throw new Error('Demo mode'); })
+        .then(r => r.text())
+        .then(t => {
+            encoderReading.textContent =
+                'Wheel RPM: ' + t;
+        });
+
+}, 250);
+
+// ---------------- ARM CONTROLS ----------------
+
+const ARM = 'http://192.168.4.200';
+
+const JOINTS = [
+    'Base',
+    'Shoulder',
+    'Elbow',
+    'Gripper'
+];
+
+const HOME = [90, 90, 90, 90];
+
+const armStatus = document.getElementById('armStatus');
+
+const sliders = [];
+
+let armTimer = null;
+let syncSliders = true;
+
+function armGet(path) {
+    return fetch(ARM + path).catch(() => {});
+}
+
+function queueArmUpdate() {
+
+    if (armTimer) return;
+
+    armTimer = setTimeout(() => {
+
+        armTimer = null;
+
+        armGet(
+            '/armall?a=' +
+            sliders.map(s => s.value).join(',')
+        );
+
+    }, 50);
+}
+
+JOINTS.forEach((name, i) => {
+
+    const row = document.createElement('div');
+
+    row.className = 'row';
+
+    row.innerHTML = `
+        <label>
+            <span>${name}</span>
+            <span>
+                <span id="jv${i}">${HOME[i]}</span>&deg;
+            </span>
+        </label>
+        <input type="range" min="0" max="180"
+               value="${HOME[i]}">
+    `;
+
+    document.getElementById('joints').appendChild(row);
+
+    const s = row.querySelector('input');
+
+    sliders.push(s);
+
+    s.addEventListener('input', () => {
+
+        document.getElementById('jv' + i).textContent = s.value;
+
+        queueArmUpdate();
+    });
+});
+
+const speed = document.getElementById('speed');
+
+speed.addEventListener('input', () => {
+
+    document.getElementById('speedVal').textContent =
+        speed.value >= 1000 ? 'Max ' : speed.value;
+});
+
+speed.addEventListener('change', () => {
+    armGet('/speed?v=' + speed.value);
+});
+
+// ---------------- ROVER SETTINGS ----------------
+
+const settingIds = [
+    'maxRpm',
+    'angleStep',
+    'kp',
+    'ki',
+    'kd',
+    'syncGain'
+];
+
+const settingLabels = {
+    maxRpm: 'maxRpmVal',
+    angleStep: 'angleStepVal',
+    kp: 'kpVal',
+    ki: 'kiVal',
+    kd: 'kdVal',
+    syncGain: 'syncGainVal'
+};
+
+function updateSettingLabels() {
+    settingIds.forEach(id => {
+        const input = document.getElementById(id);
+        document.getElementById(settingLabels[id]).textContent =
+            input.value;
+    });
+}
+
+settingIds.forEach(id => {
+    document.getElementById(id).addEventListener('input',
+        updateSettingLabels);
+});
+
+function applySettings(settings) {
+    document.getElementById('maxRpm').value = settings.maxRpm;
+    document.getElementById('angleStep').value = settings.angleStep;
+    document.getElementById('kp').value = settings.kp;
+    document.getElementById('ki').value = settings.ki;
+    document.getElementById('kd').value = settings.kd;
+    document.getElementById('syncEnabled').checked =
+        settings.syncEnabled;
+    document.getElementById('syncGain').value = settings.syncGain;
+    updateSettingLabels();
+}
+
+function saveSettings() {
+    const params = new URLSearchParams();
+
+    settingIds.forEach(id => {
+        params.set(id, document.getElementById(id).value);
+    });
+    params.set(
+        'syncEnabled',
+        document.getElementById('syncEnabled').checked ? '1' : '0'
+    );
+
+    document.getElementById('settingsStatus').textContent =
+        'Settings: saving...';
+
+    fetch('/settings?' + params.toString(), { method: 'POST' })
+        .then(r => r.json())
+        .then(settings => {
+            applySettings(settings);
+            document.getElementById('settingsStatus').textContent =
+                'Settings: saved';
+        })
+        .catch(() => {
+            document.getElementById('settingsStatus').textContent =
+                'Settings: save failed';
+        });
+}
+
+document.getElementById('saveSettingsBtn')
+    .addEventListener('click', saveSettings);
+
+document.getElementById('resetSettingsBtn')
+    .addEventListener('click', () => {
+        applySettings({
+            maxRpm: 50,
+            angleStep: 6,
+            kp: 10,
+            ki: 10,
+            kd: 0.1,
+            syncEnabled: true,
+            syncGain: 50
+        });
+        saveSettings();
+    });
+
+fetch('/settings')
+    .then(r => r.json())
+    .then(settings => {
+        applySettings(settings);
+        document.getElementById('settingsStatus').textContent =
+            'Settings: loaded';
+    })
+    .catch(() => {
+        document.getElementById('settingsStatus').textContent =
+            'Settings: load failed';
+    });
+
+// ---------------- WI-FI PAIRING ----------------
+
+const wifiStatus = document.getElementById('wifiStatus');
+const wifiNetworks = document.getElementById('wifiNetworks');
+const wifiSsid = document.getElementById('wifiSsid');
+const wifiPassword = document.getElementById('wifiPassword');
+
+function refreshWifiStatus() {
+    fetch('/wifi/status')
+        .then(r => r.json())
+        .then(s => {
+            let text = 'Wi-Fi: ' + s.status +
+                ' | AP: ' + s.apIp;
+
+            if (s.connected)
+                text += ' | LAN: ' + s.staIp;
+            else if (s.ssid)
+                text += ' | Saved SSID: ' + s.ssid;
+
+            wifiStatus.textContent = text;
+        })
+        .catch(() => {
+            wifiStatus.textContent = 'Wi-Fi: unavailable';
+        });
+}
+
+function refreshWifiNetworks() {
+    wifiNetworks.innerHTML =
+        '<option value="">Scanning for networks...</option>';
+
+    fetch('/wifi/networks')
+        .then(r => r.json())
+        .then(networks => {
+            wifiNetworks.innerHTML =
+                '<option value="">Select a network...</option>';
+
+            networks.forEach(network => {
+                if (!network.ssid) return;
+
+                const option = document.createElement('option');
+                option.value = network.ssid;
+                option.textContent =
+                    network.ssid + ' (' + network.rssi + ' dBm)';
+                wifiNetworks.appendChild(option);
+            });
+        })
+        .catch(() => {
+            wifiNetworks.innerHTML =
+                '<option value="">Scan failed</option>';
+        });
+}
+
+wifiNetworks.addEventListener('change', () => {
+    wifiSsid.value = wifiNetworks.value;
+});
+
+document.getElementById('refreshWifiBtn')
+    .addEventListener('click', refreshWifiNetworks);
+
+document.getElementById('pairWifiBtn')
+    .addEventListener('click', () => {
+        const ssid = wifiSsid.value.trim();
+        const password = wifiPassword.value;
+
+        if (!ssid) {
+            wifiStatus.textContent =
+                'Wi-Fi: enter or select a network';
+            return;
+        }
+
+        wifiStatus.textContent = 'Wi-Fi: pairing...';
+
+        const params = new URLSearchParams();
+        params.set('ssid', ssid);
+        params.set('password', password);
+
+        fetch('/wifi/pair?' + params.toString(), { method: 'POST' })
+            .then(r => r.json())
+            .then(result => {
+                wifiStatus.textContent =
+                    'Wi-Fi: ' + result.status;
+                setTimeout(refreshWifiStatus, 3000);
+            })
+            .catch(() => {
+                wifiStatus.textContent =
+                    'Wi-Fi: pairing request failed';
+            });
+    });
+
+document.getElementById('forgetWifiBtn')
+    .addEventListener('click', () => {
+        fetch('/wifi/forget', { method: 'POST' })
+            .then(r => r.json())
+            .then(result => {
+                wifiStatus.textContent =
+                    'Wi-Fi: ' + result.status;
+                refreshWifiStatus();
+            });
+    });
+
+refreshWifiStatus();
+refreshWifiNetworks();
+
+document.getElementById('homeBtn').addEventListener('click', () => {
+
+    armGet('/home');
+
+    sliders.forEach((s, i) => {
+        s.value = HOME[i];
+
+        document.getElementById('jv' + i).textContent =
+            HOME[i];
+    });
+});
+
+document.getElementById('stopBtn').addEventListener('click', () => {
+
+    armGet('/stop');
+
+    syncSliders = true;
+});
+
+setInterval(() => {
+
+    fetch(ARM + '/status')
+
+        .then(r => r.json())
+
+        .then(s => {
+
+            if (!s.ok) {
+
+                armStatus.textContent =
+                    'Arm: ESP32 online, PCA9685 not responding';
+
+                return;
+            }
+
+            let text =
+                'Arm: ' + (s.moving ? 'moving' : 'ready');
+
+            if (s.clamped)
+                text += ' (angle limited)';
+
+            armStatus.textContent =
+                text + ' | ' + s.angles.join(', ');
+
+            if (syncSliders && !s.moving) {
+
+                s.angles.forEach((a, i) => {
+
+                    sliders[i].value = a;
+
+                    document.getElementById('jv' + i)
+                        .textContent = a;
+                });
+
+                syncSliders = false;
+            }
+        })
+
+        .catch(() => {
+            armStatus.textContent = 'Arm: offline';
+        });
+
+}, 500);
+
+</script>
+</body>
+</html>
+
