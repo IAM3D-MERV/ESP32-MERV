@@ -7,7 +7,7 @@ static const char WEB_PAGE[] PROGMEM = R"HTML(
 <html>
 <head>
 <meta charset="utf-8">
-<title>Rover Control</title>
+<title>MERV Controller</title>
 <meta name="viewport"
 content="width=device-width, initial-scale=1, user-scalable=no">
 
@@ -30,35 +30,90 @@ h3 { margin: 0 0 8px; }
 
 .top-bar {
     width: 100%;
-    max-width: 360px;
+    max-width: 420px;
+    position: relative;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     margin-bottom: 16px;
 }
 
-.top-bar h2 { margin: 0; }
-
-#sectionMenu {
-    width: 160px;
-    padding: 9px 10px;
-    border: 1px solid #555;
-    border-radius: 8px;
-    background: #222;
-    color: #fff;
-    font-size: 14px;
+.top-bar h2 {
+    margin: 0;
+    text-align: center;
 }
 
-#gearBtn {
-    width: 42px;
-    height: 42px;
+#menuBtn {
+    position: absolute;
+    right: 0;
+    width: 44px;
+    height: 44px;
     padding: 0;
-    flex: 0 0 42px;
-    border-radius: 50%;
-    font-size: 21px;
+    border-radius: 10px;
+    background: #222;
+    border: 1px solid #444;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.menu-line {
+    display: block;
+    width: 20px;
+    height: 2px;
+    border-radius: 2px;
+    background: #fff;
+}
+
+.menu-popover {
+    position: fixed;
+    z-index: 30;
+    top: 72px;
+    right: 16px;
+    width: 230px;
+    background: #1c1c1c;
+    border: 1px solid #444;
+    border-radius: 12px;
+    padding: 8px;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+}
+
+.menu-item {
+    width: 100%;
+    min-height: 48px;
+    margin: 2px 0;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    background: transparent;
+    border-radius: 8px;
+    font-size: 15px;
+    text-align: left;
+}
+
+.menu-item:hover,
+.menu-item:focus-visible {
+    background: #303030;
+}
+
+.menu-icon {
+    width: 24px;
+    text-align: center;
+    font-size: 18px;
 }
 
 .hidden { display: none !important; }
+
+#drivePanel {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
 
 .popup-backdrop {
     position: fixed;
@@ -94,6 +149,14 @@ h3 { margin: 0 0 8px; }
 .popup-header h3 { margin: 0; }
 
 #closeSettingsBtn {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    padding: 0;
+    border-radius: 50%;
+}
+
+.close-panel-btn {
     width: 36px;
     height: 36px;
     flex: 0 0 36px;
@@ -234,16 +297,28 @@ button {
 <body>
 
 <div class="top-bar">
-<h2>Rover Control</h2>
-<button id="gearBtn" title="Open settings">&#9881;</button>
+<h2>MERV Controller</h2>
+<button id="menuBtn" title="Open menu" aria-label="Open menu" aria-expanded="false">
+<span class="menu-line"></span>
+<span class="menu-line"></span>
+<span class="menu-line"></span>
+</button>
 </div>
 
-<select id="sectionMenu" aria-label="Section">
-<option value="drive">Drive</option>
-<option value="arm">Arm</option>
-<option value="settings">Settings</option>
-<option value="wifi">Wi-Fi</option>
-</select>
+<div class="menu-popover hidden" id="menuPopover">
+<button class="menu-item" data-section="drive">
+<span class="menu-icon">&#127918;</span><span>Drive</span>
+</button>
+<button class="menu-item" data-section="arm">
+<span class="menu-icon">&#129522;</span><span>Arm Controls</span>
+</button>
+<button class="menu-item" data-section="settings">
+<span class="menu-icon">&#9881;</span><span>Settings</span>
+</button>
+<button class="menu-item" data-section="wifi">
+<span class="menu-icon">&#128246;</span><span>Wi-Fi Connection</span>
+</button>
+</div>
 
 <div id="drivePanel">
 
@@ -260,7 +335,13 @@ Wheel RPM: 0 | 0
 </div>
 </div>
 
-<div class="arm hidden" id="armPanel">
+<div class="popup-backdrop hidden" id="armPopup">
+<div class="popup">
+
+<div class="popup-header">
+<h3>Arm Controls</h3>
+<button class="close-panel-btn" title="Close arm controls">&times;</button>
+</div>
 
 <h3>Arm</h3>
 
@@ -285,6 +366,7 @@ id="speed" min="10" max="1000" value="60">
 Arm: connecting...
 </div>
 
+</div>
 </div>
 
 <div class="popup-backdrop hidden" id="settingsPopup">
@@ -365,7 +447,13 @@ Arm: connecting...
 </div>
 </div>
 
-<div class="settings wifi hidden" id="wifiPanel">
+<div class="popup-backdrop hidden" id="wifiPopup">
+<div class="popup">
+
+<div class="popup-header">
+<h3>Wi-Fi Connection</h3>
+<button class="close-panel-btn" title="Close Wi-Fi">&times;</button>
+</div>
 
 <h3>Wi-Fi Pairing</h3>
 
@@ -385,6 +473,7 @@ Arm: connecting...
 
 <button id="forgetWifiBtn" style="margin-top:10px; width:100%">Forget Saved Wi-Fi</button>
 
+</div>
 </div>
 
 <script>
@@ -619,44 +708,72 @@ speed.addEventListener('change', () => {
 
 // ---------------- ROVER SETTINGS ----------------
 
-const sectionMenu = document.getElementById('sectionMenu');
 const drivePanel = document.getElementById('drivePanel');
-const armPanel = document.getElementById('armPanel');
-const wifiPanel = document.getElementById('wifiPanel');
+const armPopup = document.getElementById('armPopup');
+const wifiPopup = document.getElementById('wifiPopup');
 const settingsPopup = document.getElementById('settingsPopup');
+const menuBtn = document.getElementById('menuBtn');
+const menuPopover = document.getElementById('menuPopover');
 
 function showSection(section) {
     settingsPopup.classList.add('hidden');
+    armPopup.classList.add('hidden');
+    wifiPopup.classList.add('hidden');
+    menuPopover.classList.add('hidden');
+    menuBtn.setAttribute('aria-expanded', 'false');
 
     drivePanel.classList.toggle('hidden', section !== 'drive');
-    armPanel.classList.toggle('hidden', section !== 'arm');
-    wifiPanel.classList.toggle('hidden', section !== 'wifi');
 
     if (section === 'settings')
         settingsPopup.classList.remove('hidden');
+    if (section === 'arm')
+        armPopup.classList.remove('hidden');
+    if (section === 'wifi')
+        wifiPopup.classList.remove('hidden');
 }
 
-sectionMenu.addEventListener('change', () => {
-    showSection(sectionMenu.value);
+menuBtn.addEventListener('click', event => {
+    event.stopPropagation();
+    const opening = menuPopover.classList.contains('hidden');
+    menuPopover.classList.toggle('hidden');
+    menuBtn.setAttribute('aria-expanded', opening ? 'true' : 'false');
 });
 
-document.getElementById('gearBtn').addEventListener('click', () => {
-    sectionMenu.value = 'settings';
-    showSection('settings');
+document.querySelectorAll('.menu-item').forEach(item => {
+    item.addEventListener('click', () => {
+        showSection(item.dataset.section);
+    });
 });
 
 document.getElementById('closeSettingsBtn')
     .addEventListener('click', () => {
-        settingsPopup.classList.add('hidden');
-        sectionMenu.value = 'drive';
         showSection('drive');
     });
 
 settingsPopup.addEventListener('click', event => {
     if (event.target === settingsPopup) {
-        settingsPopup.classList.add('hidden');
-        sectionMenu.value = 'drive';
         showSection('drive');
+    }
+});
+
+armPopup.addEventListener('click', event => {
+    if (event.target === armPopup ||
+        event.target.classList.contains('close-panel-btn'))
+        showSection('drive');
+});
+
+wifiPopup.addEventListener('click', event => {
+    if (event.target === wifiPopup ||
+        event.target.classList.contains('close-panel-btn'))
+        showSection('drive');
+});
+
+document.addEventListener('click', event => {
+    if (!menuPopover.contains(event.target) &&
+        event.target !== menuBtn &&
+        !menuBtn.contains(event.target)) {
+        menuPopover.classList.add('hidden');
+        menuBtn.setAttribute('aria-expanded', 'false');
     }
 });
 
